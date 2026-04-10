@@ -64,7 +64,7 @@ The web interface is available at the port defined by `WEB_PORT` (default: `http
 
 #### Email / SMTP
 
-Required for password reset emails and invitations. Leave blank to disable.
+Required for password reset emails and invitations. All six variables must be set together; the section is commented out in `.env.example` by default.
 
 | Variable | Description |
 |---|---|
@@ -77,7 +77,7 @@ Required for password reset emails and invitations. Leave blank to disable.
 
 #### S3-Compatible File Storage
 
-Required for avatar and attachment uploads. Leave blank to disable.
+Required for avatar and attachment uploads. The section is commented out in `.env.example` by default.
 
 | Variable | Description |
 |---|---|
@@ -131,4 +131,5 @@ PostgreSQL data is stored at the path set by `DOCKER_DATA_PATH` (defaults to `./
 ## Notes
 
 - The PostgreSQL port (`5432`) is not exposed to the host by default. All communication between services happens over the internal Docker network. Uncomment the `ports` block in `compose.yaml` only if you need external database access (e.g. during local development with a GUI client).
-- `NEXT_PUBLIC_ALLOW_CREDENTIALS=true` is set unconditionally in `compose.yaml` and does not need to appear in `.env`.
+- `NEXT_PUBLIC_ALLOW_CREDENTIALS=true` is hardcoded in `compose.yaml` and does not need to appear in `.env`.
+- Optional variables in `.env.example` are commented out by default. Leave them commented out — rather than setting them to an empty string — to disable the associated feature. The app's environment validation rejects empty strings for URL and credential fields and will refuse to start.
