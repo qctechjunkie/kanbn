@@ -1,4 +1,19 @@
+# kan.bn Docker Compose
+# Docs: https://docs.kan.bn/guides/self-hosting/introduction
+#
+# Quick reference:
+#   Start services:     docker compose up -d
+#   Stop services:      docker compose down
+#   View logs:          docker compose logs -f
+#   Restart services:   docker compose restart
+#   Run migrations:     docker compose --profile migrate run --rm migrate
+
 services:
+
+  # ── Migration runner ────────────────────────────────────────────────────────
+  # One-shot service that applies database schema changes.
+  # Run before first launch and after each image upgrade:
+  #   docker compose --profile migrate run --rm migrate
   migrate:
     image: ghcr.io/kanbn/kan-migrate:latest
     container_name: kan-migrate
@@ -13,6 +28,7 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # ── Web application ─────────────────────────────────────────────────────────
   web:
     image: ghcr.io/kanbn/kan:latest
     container_name: kan-web
@@ -20,33 +36,57 @@ services:
       - "${WEB_PORT:-3000}:3000"
     networks:
       - kan-network
-    env_file:
-      - .env
     environment:
+      # Required
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - POSTGRES_URL=${POSTGRES_URL}
       - NEXT_PUBLIC_ALLOW_CREDENTIALS=true
-      - TRELLO_APP_API_KEY=${TRELLO_APP_API_KEY}
-      - TRELLO_APP_SECRET=${TRELLO_APP_SECRET}
+
+      # Optional: authentication
+      - NEXT_PUBLIC_DISABLE_SIGN_UP=${NEXT_PUBLIC_DISABLE_SIGN_UP:-false}
+
+      # Optional: email / SMTP (leave blank to disable email features)
+      - EMAIL_FROM=${EMAIL_FROM:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_SECURE=${SMTP_SECURE:-}
+
+      # Optional: S3-compatible file storage (leave blank to disable uploads)
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-}
+      - NEXT_PUBLIC_STORAGE_URL=${NEXT_PUBLIC_STORAGE_URL:-}
+      - NEXT_PUBLIC_STORAGE_DOMAIN=${NEXT_PUBLIC_STORAGE_DOMAIN:-}
+
+      # Optional: integrations
+      - TRELLO_APP_API_KEY=${TRELLO_APP_API_KEY:-}
+      - TRELLO_APP_SECRET=${TRELLO_APP_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── PostgreSQL database ─────────────────────────────────────────────────────
   postgres:
     image: postgres:15
     container_name: kan-db
     environment:
-      - POSTGRES_DB=kan_db
-      - POSTGRES_USER=kan
+      - POSTGRES_DB=${POSTGRES_DB:-kan_db}
+      - POSTGRES_USER=${POSTGRES_USER:-kan}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - 5432:5432
+    # Port 5432 is not exposed to the host by default; all inter-service
+    # communication happens over the internal kan-network.
+    # Uncomment the lines below only if you need direct external DB access
+    # (e.g. a local GUI client during development):
+    # ports:
+    #   - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ${DOCKER_DATA_PATH:-kan_data}/db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kan -d kan_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kan} -d ${POSTGRES_DB:-kan_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -56,6 +96,4 @@ services:
 
 networks:
   kan-network:
-
-volumes:
-  kan_postgres_data:
+    driver: bridge
