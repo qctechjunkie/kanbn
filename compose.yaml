@@ -9,7 +9,6 @@
 #   Run migrations:     docker compose --profile migrate run --rm migrate
 
 services:
-
   # ── Migration runner ────────────────────────────────────────────────────────
   # One-shot service that applies database schema changes.
   # Run before first launch and after each image upgrade:
@@ -21,6 +20,7 @@ services:
       - migrate
     networks:
       - kan-network
+      - postgres-network
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
     depends_on:
@@ -36,6 +36,7 @@ services:
       - "${WEB_PORT:-3000}:3000"
     networks:
       - kan-network
+      - postgres-network
     # env_file passes only the variables that are actually defined (and
     # uncommented) in .env. This prevents empty strings from reaching the
     # app's environment validation for optional URL/string fields.
@@ -49,31 +50,34 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── PostgreSQL database ─────────────────────────────────────────────────────
-  postgres:
-    image: postgres:15
-    container_name: kan-db
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-kan_db}
-      - POSTGRES_USER=${POSTGRES_USER:-kan}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    # Port 5432 is not exposed to the host by default; all inter-service
-    # communication happens over the internal kan-network.
-    # Uncomment the lines below only if you need direct external DB access
-    # (e.g. a local GUI client during development):
-    # ports:
-    #   - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - ${DOCKER_DATA_PATH:-kan_data}/db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kan} -d ${POSTGRES_DB:-kan_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-    networks:
-      - kan-network
+  # # ── PostgreSQL database ─────────────────────────────────────────────────────
+  # postgres:
+  #   image: postgres:15
+  #   container_name: kan-db
+  #   environment:
+  #     - POSTGRES_DB=${POSTGRES_DB:-kan_db}
+  #     - POSTGRES_USER=${POSTGRES_USER:-kan}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #   # Port 5432 is not exposed to the host by default; all inter-service
+  #   # communication happens over the internal kan-network.
+  #   # Uncomment the lines below only if you need direct external DB access
+  #   # (e.g. a local GUI client during development):
+  #   # ports:
+  #   #   - "${POSTGRES_PORT:-5432}:5432"
+  #   volumes:
+  #     - ${DOCKER_DATA_PATH:-kan_data}/db:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kan} -d ${POSTGRES_DB:-kan_db}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   restart: unless-stopped
+  #   networks:
+  #     - kan-network
 
 networks:
   kan-network:
     driver: bridge
+  postgres-network:
+    external: true
+    name: ${POSTGRES_NETWORK_NAME:?POSTGRES_NETWORK_NAME must be set}
