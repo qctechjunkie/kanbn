@@ -23,9 +23,6 @@ services:
       - postgres-network
     environment:
       - POSTGRES_URL=${POSTGRES_URL}
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: "no"
 
   # ── Web application ─────────────────────────────────────────────────────────
@@ -45,9 +42,6 @@ services:
     environment:
       # Hardcoded — not user-configurable; required by Better Auth.
       - NEXT_PUBLIC_ALLOW_CREDENTIALS=true
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
 
   # # ── PostgreSQL database ─────────────────────────────────────────────────────
